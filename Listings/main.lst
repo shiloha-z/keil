@@ -1,4 +1,4 @@
-C51 COMPILER V9.60.0.0   MAIN                                                              09/25/2022 21:53:08 PAGE 1   
+C51 COMPILER V9.60.0.0   MAIN                                                              09/26/2022 18:10:30 PAGE 1   
 
 
 C51 COMPILER V9.60.0.0, COMPILATION OF MODULE MAIN
@@ -17,383 +17,596 @@ line level    source
    7          #define uchar unsigned char
    8          #define buzzer_open 1
    9          #define buzzer_close 0
-  10          
-  11          sbit led_en = P2 ^ 7; // led使能
-  12          sbit led_rw = P2 ^ 6; //读写
-  13          sbit led_rs = P2 ^ 5; //数据、指令选择
-  14          sbit background_light = P2 ^ 4;
-  15          
-  16          sbit buzzer = P2 ^ 3;        //蜂鸣器
-  17          sbit button_buzzer = P1 ^ 3; //按键反馈音
-  18          
-  19          sbit IO = P2 ^ 1; // 1302计时器
-  20          sbit SCLK = P2 ^ 0;
-  21          sbit RST = P2 ^ 2;
-  22          
-  23          sbit button1 = P1 ^ 0; //控制按键
-  24          sbit button2 = P1 ^ 1;
-  25          sbit button3 = P1 ^ 2;
-  26          
-  27          sbit hcsr04_trig = P1 ^ 4;
-  28          sbit hcsr04_echo = P1 ^ 5;
-  29          
-  30          uchar code tab1[] = {"    20  -  -"}; //年显示的固定字符
-  31          uchar code tab2[] = {"  :  :"};       //时间显示的固定字符
-  32          uchar code weekday[7][3] = {"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"};
-  33          uchar second, minute, hour, day, week, month, year, temp, tem, clk_hour, clk_min, clk_on;
-  34          uint dis, dis_pre, j;
-  35          
-  36          void buzzer_on(uint);
-  37          
-  38          void ds1302_init(void);        //
-  39          void write_1302(uchar, uchar); //向1302写入数据函数，指定读取数据来源地址,和写入数�
+  10          #define limit_distance 15
+  11          
+  12          sbit led_en = P2 ^ 7; // led使能
+  13          sbit led_rw = P2 ^ 6; //读写
+  14          sbit led_rs = P2 ^ 5; //数据、指令选择
+  15          sbit background_light = P2 ^ 4;
+  16          
+  17          sbit buzzer = P2 ^ 3;    //蜂鸣器
+  18          sbit button_buzzer = P1 ^ 4; //按键反馈音
+  19          
+  20          sbit IO = P2 ^ 1; // 1302计时器
+  21          sbit SCLK = P2 ^ 0;
+  22          sbit RST = P2 ^ 2;
+  23          
+  24          sbit button1 = P1 ^ 0; //控制按键
+  25          sbit button2 = P1 ^ 1;
+  26          sbit button3 = P1 ^ 2;
+  27          sbit button4 = P1 ^ 3;
+  28          
+  29          sbit hcsr04_trig = P1 ^ 6;
+  30          sbit hcsr04_echo = P1 ^ 5;
+  31          
+  32          uchar code tab1[] = {" 20  -  -       "}; //年显示的固定字符
+  33          uchar code tab2[] = {"     :  :       "}; //时间显示的固定字符
+  34          uchar code tab_clock[] = {"Clock Time   :  "};
+  35          uchar code tab_void[] = {"                "};
+  36          uchar code tab_on[] = {"      ON        "};
+  37          uchar code tab_off[] = {"      OFF       "};
+  38          uchar code tab_stop_clock[] = {"   Stop Clock   "};
+  39          uchar code tab_sign[] = {"  ^             "};
+  40          
+  41          uchar code weekday[7][3] = {"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"};
+  42          uchar second, minute, hour, day, week, month, year, dis_temp, dis_temp_pre, tem, clk_hour, clk_min, clk_on
+             -, mod, stop_watch, sw_second, sw_minute, sw_hour, sw_second_begin, sw_minute_begin, sw_hour_begin;
+  43          uchar clock_bit_chose;
+  44          uint dis, dis_pre, j;
+  45          
+  46          //*********************************************************************************
+  47          void buzzer_on(uint);
+  48          
+  49          void ds1302_init(void);      //
+  50          void write_1302(uchar, uchar); //向1302写入数据函数，指定读取数据来源地址,和写入数�
              -�
-  40          uchar read_1302(uchar);        //从1302读数据函数，指定读取数据来源地址
-  41          
-  42          void lcd_init(void);       // lcd1602a
-  43          void write_lcd_com(uchar); //***液晶写入命令函数
-  44          void write_lcd_dat(uchar); //***液晶写入数据函数
-  45          void time_read(void);
-  46          void time_first_row_write(uchar, uchar); // lcd时间写入,参数为位置和数值
-  47          void time_second_row_write(uchar, uchar);
-  48          void time_weekday_write(uchar, uchar);
-  49          void lcd_time_write(void);
-  50          
-  51          void initT0(void); //定时器、计数器设置函数
-  52          uchar BCD2Decimal(uchar);
-  53          void whole_hour_tall_time(void);
-C51 COMPILER V9.60.0.0   MAIN                                                              09/25/2022 21:53:08 PAGE 2   
+  51          uchar read_1302(uchar);      //从1302读数据函数，指定读取数据来源地址
+  52          
+C51 COMPILER V9.60.0.0   MAIN                                                              09/26/2022 18:10:30 PAGE 2   
 
-  54          void alarm(void);
-  55          
-  56          void CSB(void);      //超声波测距
-  57          void startCSB(void); //启动超声波模块
-  58          void endTime();      //超声波回来，停止记时
-  59          void startTime();    //超声波发出时刻，启动记时
-  60          uint getDistance();  //获取距离的函数
-  61          
-  62          void main()
-  63          {
-  64   1          button_buzzer = 0;
-  65   1          lcd_init();
-  66   1          ds1302_init(); //计时器初始化
-  67   1          initT0();      //蜂鸣器异常
-  68   1      
-  69   1          buzzer_on(50); //上移会导致背光调节失效
-  70   1          clk_on = 0;
-  71   1          while (1)
-  72   1              ;
-  73   1      }
-  74          
-  75          void delay10us() //延时10us函数
-  76          {
-  77   1          TH1 = 0xff;
-  78   1          TL1 = 0xf6;
-  79   1          TR1 = 1;
-  80   1          while (!TF1)
-  81   1              ;
-  82   1          TF1 = 0;
-  83   1      }
-  84          void buzzer_on(uint ms)
-  85          {
-  86   1          buzzer = buzzer_open;
-  87   1          while ((ms--) > 0)
-  88   1              delay10us();
-  89   1          buzzer = buzzer_close;
-  90   1      }
-  91          void button_buzzer_on(uint ms)
-  92          {
-  93   1          button_buzzer = buzzer_open;
-  94   1          while ((ms--) > 0)
-  95   1              delay10us();
-  96   1          button_buzzer = buzzer_close;
-  97   1      }
-  98          uchar BCD2Decimal(uchar bcd) // BCD码转十进制函数，输入BCD，返回十进制
+  53          void lcd_init(void);     // lcd1602a
+  54          void write_lcd_com(uchar); //***液晶写入命令函数
+  55          void write_lcd_dat(uchar); //***液晶写入数据函数
+  56          void time_read(void);
+  57          void time_first_row_write(uchar, uchar); // lcd时间写入,参数为位置和数值
+  58          void time_second_row_write(uchar, uchar);
+  59          void time_weekday_write(uchar, uchar);
+  60          void lcd_time_write(void);
+  61          void lcd_sentence_write(uint, uchar, uchar *);
+  62          
+  63          void initT0(void); //定时器、计数器设置函数
+  64          uchar BCD2Decimal(uchar);
+  65          // void whole_hour_tall_time(void);
+  66          void alarm(void);
+  67          
+  68          void CSB(void);    //超声波测距
+  69          void startCSB(void); //启动超声波模块
+  70          void endTime();    //超声波回来，停止记时
+  71          void startTime();  //超声波发出时刻，启动记时
+  72          uint getDistance();  //获取距离的函数
+  73          
+  74          //**********************************************************************************
+  75          
+  76          void main()
+  77          {
+  78   1        {
+  79   2          dis_temp_pre = 0;
+  80   2          tem = 0;
+  81   2          button_buzzer = 0;
+  82   2          mod = 0;
+  83   2          stop_watch = 0;
+  84   2          sw_hour = 0;
+  85   2          sw_minute = 0;
+  86   2          sw_second = 0;
+  87   2      
+  88   2          clk_on = 0;
+  89   2        }
+  90   1        lcd_init();
+  91   1        ds1302_init(); //计时器初始化
+  92   1        initT0();    //蜂鸣器异常
+  93   1        buzzer_on(50); //上移会导致背光调节失效
+  94   1        while (1)
+  95   1          ;
+  96   1      }
+  97          
+  98          void delay10us() //延时10us函数
   99          {
- 100   1          uchar Decimal;
- 101   1          Decimal = bcd >> 4;
- 102   1          return (Decimal = Decimal * 10 + (bcd &= 0x0F));
- 103   1      }
- 104          void whole_hour_tall_time(void) //待完善
- 105          {
- 106   1          if (hour == 12 && minute == 0 && second == 0)
- 107   1              buzzer = buzzer_open;
- 108   1          if (hour == 12 && minute == 0 && second == 30)
- 109   1              buzzer = buzzer_close;
- 110   1      }
- 111          void alarm(void)
- 112          {
- 113   1          if (hour == clk_hour && minute == clk_min && second == 0)
- 114   1              buzzer = buzzer_open;
- 115   1          if (hour == clk_hour && minute == clk_min && second == 30)
-C51 COMPILER V9.60.0.0   MAIN                                                              09/25/2022 21:53:08 PAGE 3   
+ 100   1        TH1 = 0xff;
+ 101   1        TL1 = 0xf6;
+ 102   1        TR1 = 1;
+ 103   1        while (!TF1)
+ 104   1          ;
+ 105   1        TF1 = 0;
+ 106   1      }
+ 107          void delay10nus(uint n)
+ 108          {
+ 109   1        uint j;
+ 110   1        for (j = n; j > 0; j--)
+ 111   1          delay10us();
+ 112   1      }
+ 113          void buzzer_on(uint ms)
+ 114          {
+C51 COMPILER V9.60.0.0   MAIN                                                              09/26/2022 18:10:30 PAGE 3   
 
- 116   1              buzzer = buzzer_close;
- 117   1      }
- 118          
- 119          void lcd_init(void)
+ 115   1        buzzer = buzzer_open;
+ 116   1        delay10nus(ms);
+ 117   1        buzzer = buzzer_close;
+ 118   1      }
+ 119          void button_buzzer_on(uint ms)
  120          {
- 121   1          uint a;
- 122   1          write_lcd_com(0x38);          //设置液晶工作模式，意思：16*2行显示，5*7点阵，8位�
-             -�据
- 123   1          write_lcd_com(0x0c);          //开显示不显示光标
- 124   1          write_lcd_com(0x06);          //整屏不移动，光标自动右移
- 125   1          write_lcd_com(0x01);          //清显示
- 126   1          write_lcd_com(first_row + 1); //日历显示固定符号从第一行第1个位置之后开始显示
- 127   1      
- 128   1          for (a = 0; a < 14; a++)
- 129   1              write_lcd_dat(tab1[a]);    //向液晶屏写日历显示的固定符号部分
- 130   1          write_lcd_com(secode_row + 3); //时间显示固定符号写入位置，从第2个位置后开始显�
-             -�
- 131   1          for (a = 0; a < 6; a++)
- 132   1              write_lcd_dat(tab2[a]); //写显示时间固定符号，两个冒号
- 133   1      }
- 134          void write_lcd_com(uchar com) //****液晶写入指令函数****
- 135          {
- 136   1          led_rs = 0; //数据/指令选择置为指令
- 137   1          led_rw = 0; //读写选择置为写
- 138   1          P0 = com;   //送入数据
- 139   1          led_en = 1; //拉高使能端，为制造有效的下降沿做准备
- 140   1          for (j = 6; j > 0; j--)
- 141   1              delay10us();
- 142   1          led_en = 0; // led_en由高变低，产生下降沿，液晶执行命令
- 143   1          for (j = 3; j > 0; j--)
- 144   1              delay10us();
- 145   1      }
- 146          void write_lcd_dat(uchar dat) //***液晶写入数据函数****
+ 121   1        button_buzzer = buzzer_open;
+ 122   1      
+ 123   1        background_light = 0;
+ 124   1        TH0 = 0xff; // 65536-10000
+ 125   1        TL0 = 0xff; // 0xD8F0=65536-10000
+ 126   1        EA = 1;
+ 127   1        ET0 = 1;
+ 128   1        TR0 = 1;
+ 129   1      
+ 130   1        delay10nus(ms);
+ 131   1        button_buzzer = buzzer_close;
+ 132   1      }
+ 133          uchar BCD2Decimal(uchar bcd) // BCD码转十进制函数，输入BCD，返回十进制
+ 134          {
+ 135   1        uchar Decimal;
+ 136   1        Decimal = bcd >> 4;
+ 137   1        return (Decimal = Decimal * 10 + (bcd &= 0x0F));
+ 138   1      }
+ 139          /* void whole_hour_tall_time(void) //整点报时函数待完善
+ 140          {
+ 141            if (hour == 12 && minute == 0 && second == 0)
+ 142              buzzer = buzzer_open;
+ 143            if (hour == 12 && minute == 0 && second == 30)
+ 144              buzzer = buzzer_close;
+ 145          } */
+ 146          void alarm(void)
  147          {
- 148   1          uint i = 9;
- 149   1          led_rs = 1; //数据/指令选择置为数据
- 150   1          led_rw = 0; //读写选择置为写
- 151   1          P0 = dat;   //送入数据
- 152   1          led_en = 1; // led_en置高电平，为制造下降沿做准备
- 153   1          for (i; i > 0; i--)
- 154   1              delay10us();
- 155   1          led_en = 0; // led_en由高变低，产生下降沿，液晶执行命令
- 156   1      }
- 157          
- 158          void ds1302_init() // 1302芯片初始化子函数
- 159          {
- 160   1          RST = 0;
- 161   1          SCLK = 0;
- 162   1          write_1302(0x8e, 0x00); //允许写，禁止写保护 10001110
- 163   1          write_1302(0xa0, 0x00); //允许写，禁止写保护 10100000
- 164   1          write_1302(0xa0, 0x00); //允许写，禁止写保护
- 165   1          write_1302(0xa0, 0x00); //允许写，禁止写保护
- 166   1          /*     write_1302(0x80, 0x30); //秒
- 167   1              write_1302(0x82, 0x31); //分
- 168   1              write_1302(0x84, 0x20); //时
- 169   1              write_1302(0x86, 0x25); //日
- 170   1              write_1302(0x88, 0x09); //月
- 171   1              write_1302(0x8c, 0x22); //年 */
- 172   1          write_1302(0x8e, 0x80);
- 173   1      }
- 174          void write_1302(uchar add, uchar dat) //向1302芯片写函数，指定写入地址，数据
- 175          {
-C51 COMPILER V9.60.0.0   MAIN                                                              09/25/2022 21:53:08 PAGE 4   
+ 148   1        if (hour == clk_hour && minute == clk_min && second == 0)
+ 149   1          buzzer = buzzer_open;
+ 150   1        if (hour == clk_hour && minute == clk_min && second == 30)
+ 151   1          buzzer = buzzer_close;
+ 152   1      }
+ 153          
+ 154          void lcd_init(void)
+ 155          {
+ 156   1      
+ 157   1        write_lcd_com(0x38); //设置液晶工作模式，意思：16*2行显示，5*7点阵，8位数据
+ 158   1        write_lcd_com(0x0c); //开显示不显示光标
+ 159   1        write_lcd_com(0x06); //整屏不移动，光标自动右移
+ 160   1        write_lcd_com(0x01); //清显示
+ 161   1        delay10nus(30);
+ 162   1        lcd_sentence_write(1, 0, tab1);
+ 163   1        lcd_sentence_write(2, 0, tab2);
+ 164   1      }
+ 165          void write_lcd_com(uchar com) //****液晶写入指令函数****
+ 166          {
+ 167   1        led_rs = 0; //数据/指令选择置为指令
+ 168   1        led_rw = 0; //读写选择置为写
+ 169   1        P0 = com; //送入数据
+ 170   1        led_en = 1; //拉高使能端，为制造有效的下降沿做准备
+ 171   1        delay10nus(6);
+ 172   1        led_en = 0; // led_en由高变低，产生下降沿，液晶执行命令
+ 173   1        delay10nus(3);
+ 174   1      }
+ 175          void write_lcd_dat(uchar dat) //***液晶写入数据函数****
+ 176          {
+C51 COMPILER V9.60.0.0   MAIN                                                              09/26/2022 18:10:30 PAGE 4   
 
- 176   1          uchar i;
- 177   1          RST = 0;
- 178   1          SCLK = 0;
- 179   1          RST = 1;
- 180   1          for (i = 0; i < 8; i++)
- 181   1          {
- 182   2              IO = add & (0x01 << i);
- 183   2              SCLK = 0;
- 184   2              SCLK = 1;
- 185   2          }
- 186   1          for (i = 0; i < 8; i++)
- 187   1          {
- 188   2              IO = dat & (0x01 << i);
- 189   2              SCLK = 0;
- 190   2              SCLK = 1;
- 191   2          }
- 192   1          SCLK = 0;
- 193   1      }
- 194          uchar read_1302(uchar add) //
- 195          {
- 196   1          uchar i, DATA = 0x00;
- 197   1          RST = 0;
- 198   1          SCLK = 0;
- 199   1          RST = 1;
- 200   1          for (i = 0; i < 8; i++)
- 201   1          {
- 202   2              IO = add & (0x01 << i);
- 203   2              SCLK = 1;
- 204   2              SCLK = 0;
- 205   2          }
- 206   1          for (i = 0; i < 8; i++)
- 207   1          {
- 208   2              if (IO)
- 209   2                  DATA = DATA | (0x01 << i);
- 210   2              SCLK = 1;
- 211   2              SCLK = 0;
- 212   2          }
- 213   1          return DATA;
- 214   1      }
- 215          
- 216          void initT0(void) //定时器、计数器设置函数
- 217          {
- 218   1          TMOD = 0x01;
- 219   1          TH0 = 0xD8; // 65536-10000
- 220   1          TL0 = 0xF0; // 0xD8F0=65536-10000
- 221   1          EA = 1;
- 222   1          ET0 = 1;
- 223   1          TR0 = 1;
- 224   1      }
- 225          
- 226          void time_read(void)
- 227          {
- 228   1          second = BCD2Decimal(read_1302(0x81));
- 229   1          minute = BCD2Decimal(read_1302(0x83));
- 230   1          hour = BCD2Decimal(read_1302(0x85));
- 231   1          day = BCD2Decimal(read_1302(0x87));
- 232   1          week = BCD2Decimal(read_1302(0x8b));
- 233   1          month = BCD2Decimal(read_1302(0x89));
- 234   1          year = BCD2Decimal(read_1302(0x8d));
- 235   1      }
- 236          void time_first_row_write(uchar add, uchar dat)
- 237          {
-C51 COMPILER V9.60.0.0   MAIN                                                              09/25/2022 21:53:08 PAGE 5   
+ 177   1        uint i = 9;
+ 178   1        led_rs = 1; //数据/指令选择置为数据
+ 179   1        led_rw = 0; //读写选择置为写
+ 180   1        P0 = dat; //送入数据
+ 181   1        led_en = 1; // led_en置高电平，为制造下降沿做准备
+ 182   1        for (i; i > 0; i--)
+ 183   1          delay10us();
+ 184   1        led_en = 0; // led_en由高变低，产生下降沿，液晶执行命令
+ 185   1      }
+ 186          
+ 187          void ds1302_init() // 1302芯片初始化子函数
+ 188          {
+ 189   1        RST = 0;
+ 190   1        SCLK = 0;
+ 191   1        write_1302(0x8e, 0x00); //允许写，禁止写保护 10001110
+ 192   1        write_1302(0xa0, 0x00); //允许写，禁止写保护 10100000
+ 193   1        write_1302(0xa0, 0x00); //允许写，禁止写保护
+ 194   1        write_1302(0xa0, 0x00); //允许写，禁止写保护
+ 195   1        /*     write_1302(0x80, 0x30); //秒
+ 196   1          write_1302(0x82, 0x31); //分
+ 197   1          write_1302(0x84, 0x20); //时
+ 198   1          write_1302(0x86, 0x25); //日
+ 199   1          write_1302(0x88, 0x09); //月
+ 200   1          write_1302(0x8c, 0x22); //年 */
+ 201   1        write_1302(0x8e, 0x80);
+ 202   1      }
+ 203          void write_1302(uchar add, uchar dat) //向1302芯片写函数，指定写入地址，数据
+ 204          {
+ 205   1        uchar i;
+ 206   1        RST = 0;
+ 207   1        SCLK = 0;
+ 208   1        RST = 1;
+ 209   1        for (i = 0; i < 8; i++)
+ 210   1        {
+ 211   2          IO = add & (0x01 << i);
+ 212   2          SCLK = 0;
+ 213   2          SCLK = 1;
+ 214   2        }
+ 215   1        for (i = 0; i < 8; i++)
+ 216   1        {
+ 217   2          IO = dat & (0x01 << i);
+ 218   2          SCLK = 0;
+ 219   2          SCLK = 1;
+ 220   2        }
+ 221   1        SCLK = 0;
+ 222   1      }
+ 223          uchar read_1302(uchar add) //
+ 224          {
+ 225   1        uchar i, DATA = 0x00;
+ 226   1        RST = 0;
+ 227   1        SCLK = 0;
+ 228   1        RST = 1;
+ 229   1        for (i = 0; i < 8; i++)
+ 230   1        {
+ 231   2          IO = add & (0x01 << i);
+ 232   2          SCLK = 1;
+ 233   2          SCLK = 0;
+ 234   2        }
+ 235   1        for (i = 0; i < 8; i++)
+ 236   1        {
+ 237   2          if (IO)
+ 238   2            DATA = DATA | (0x01 << i);
+C51 COMPILER V9.60.0.0   MAIN                                                              09/26/2022 18:10:30 PAGE 5   
 
- 238   1          uchar unit, decade; //个位十位
- 239   1          write_lcd_com(first_row + add);
- 240   1          decade = dat / 10;
- 241   1          unit = dat % 10;
- 242   1          write_lcd_dat('0' + decade); //'0'=0x30
- 243   1          write_lcd_dat('0' + unit);
- 244   1      }
- 245          void time_second_row_write(uchar add, uchar dat)
+ 239   2          SCLK = 1;
+ 240   2          SCLK = 0;
+ 241   2        }
+ 242   1        return DATA;
+ 243   1      }
+ 244          
+ 245          void initT0(void) //定时器、计数器设置函数
  246          {
- 247   1          uchar unit, decade; //个位十位
- 248   1          write_lcd_com(secode_row + add);
- 249   1          // bai = dat/100;
- 250   1          decade = dat / 10;
- 251   1          unit = dat % 10;
- 252   1          // write_lcd_dat('0'+bai);
- 253   1          write_lcd_dat('0' + decade);
- 254   1          write_lcd_dat('0' + unit);
- 255   1      }
- 256          void time_weekday_write(uchar add, uchar dat)
- 257          {
- 258   1          write_lcd_com(first_row + add);
- 259   1          for (j = 0; j < 3; j++)
- 260   1              write_lcd_dat(weekday[dat - 1][j]);
- 261   1      }
- 262          void lcd_time_write(void)
- 263          {
- 264   1          time_first_row_write(3, year);
- 265   1          time_first_row_write(6, month);
- 266   1          time_first_row_write(9, day);
- 267   1          time_second_row_write(3, hour);
- 268   1          time_second_row_write(6, minute);
- 269   1          time_second_row_write(9, second);
- 270   1          time_weekday_write(12, week);
- 271   1          time_second_row_write(12, temp);
- 272   1          // time_second_row_write(0, tem);
+ 247   1        TMOD = 0x01;
+ 248   1        TH2 = 0xD8; // 65536-10000
+ 249   1        TL2 = 0xF0; // 0xD8F0=65536-10000
+ 250   1        EA = 1;
+ 251   1        ET2 = 1;
+ 252   1        TR2 = 1;
+ 253   1      }
+ 254          
+ 255          void time_read(void)
+ 256          {
+ 257   1        second = BCD2Decimal(read_1302(0x81));
+ 258   1        minute = BCD2Decimal(read_1302(0x83));
+ 259   1        hour = BCD2Decimal(read_1302(0x85));
+ 260   1        day = BCD2Decimal(read_1302(0x87));
+ 261   1        week = BCD2Decimal(read_1302(0x8b));
+ 262   1        month = BCD2Decimal(read_1302(0x89));
+ 263   1        year = BCD2Decimal(read_1302(0x8d));
+ 264   1      }
+ 265          void time_first_row_write(uchar add, uchar dat)
+ 266          {
+ 267   1        uchar unit, decade; //个位十位
+ 268   1        write_lcd_com(first_row + add);
+ 269   1        decade = dat / 10;
+ 270   1        unit = dat % 10;
+ 271   1        write_lcd_dat('0' + decade); //'0'=0x30
+ 272   1        write_lcd_dat('0' + unit);
  273   1      }
- 274          
- 275          void CSB(void)
- 276          {
- 277   1      
- 278   1          startCSB();
- 279   1          while (hcsr04_echo != 1)
- 280   1              ; //发出超声波，开始计算时间
- 281   1          startTime();
- 282   1          while (hcsr04_echo != 0)
- 283   1              ; //超声波回来，时间截止
- 284   1          endTime();
- 285   1          dis_pre = dis;
- 286   1          dis = getDistance(); //获取距离
- 287   1      
- 288   1          temp = dis;
- 289   1      
- 290   1          if (dis_pre - dis > 30)
- 291   1          {
- 292   2              background_light = 0;
- 293   2              TH2 = 0x00; // 65536-10000
- 294   2              TL2 = 0x00; // 55536
- 295   2              EA = 1;
- 296   2              ET2 = 1;
- 297   2              TR2 = 1;
- 298   2          }
- 299   1      }
-C51 COMPILER V9.60.0.0   MAIN                                                              09/25/2022 21:53:08 PAGE 6   
+ 274          void time_second_row_write(uchar add, uchar dat)
+ 275          {
+ 276   1        uchar unit, decade; //个位十位
+ 277   1        write_lcd_com(secode_row + add);
+ 278   1        // bai = dat/100;
+ 279   1        decade = dat / 10;
+ 280   1        unit = dat % 10;
+ 281   1        // write_lcd_dat('0'+bai);
+ 282   1        write_lcd_dat('0' + decade);
+ 283   1        write_lcd_dat('0' + unit);
+ 284   1      }
+ 285          void time_weekday_write(uchar add, uchar dat)
+ 286          {
+ 287   1        write_lcd_com(first_row + add);
+ 288   1        for (j = 0; j < 3; j++)
+ 289   1          write_lcd_dat(weekday[dat - 1][j]);
+ 290   1      }
+ 291          void lcd_time_write(void)
+ 292          {
+ 293   1        time_first_row_write(3, year);
+ 294   1        time_first_row_write(6, month);
+ 295   1        time_first_row_write(9, day);
+ 296   1        time_second_row_write(3, hour);
+ 297   1        time_second_row_write(6, minute);
+ 298   1        time_second_row_write(9, second);
+ 299   1        time_weekday_write(12, week);
+ 300   1      }
+C51 COMPILER V9.60.0.0   MAIN                                                              09/26/2022 18:10:30 PAGE 6   
 
- 300          void startCSB(void) //启动超声波模块
- 301          {
- 302   1          hcsr04_trig = 0;
- 303   1          hcsr04_trig = 1;
- 304   1          delay10us();
- 305   1          hcsr04_trig = 0;
- 306   1      }
- 307          void startTime() //超声波发出时刻，启动记时
- 308          {
- 309   1          TH1 = 0;
- 310   1          TL1 = 0;
- 311   1          TR1 = 1;
- 312   1      }
- 313          void endTime() //超声波回来，停止记时
- 314          {
- 315   1          TR1 = 0;
+ 301          void lcd_sentence_write(uint row, uchar add, uchar *sen)
+ 302          {
+ 303   1        uint a;
+ 304   1        if (row == 1)
+ 305   1        {
+ 306   2          write_lcd_com(first_row + add); //日历显示固定符号从第一行第1个位置之后开始显示
+ 307   2          for (a = 0; a < 16; a++)
+ 308   2            write_lcd_dat(sen[a]); //向液晶屏写日历显示的固定符号部分
+ 309   2        }
+ 310   1        else if (row == 2)
+ 311   1        {
+ 312   2          write_lcd_com(secode_row + add); //时间显示固定符号写入位置，从第2个位置后开始显�
+             -�
+ 313   2          for (a = 0; a < 16; a++)
+ 314   2            write_lcd_dat(sen[a]); //写显示时间固定符号，两个冒号
+ 315   2        }
  316   1      }
- 317          uint getDistance() //获取距离的函数
- 318          {
- 319   1          uint distance;
- 320   1          uint time;
- 321   1          time = TH1 << 8 | TL1;
- 322   1          distance = (time >> 7) % 100;
- 323   1          return distance;
- 324   1      }
- 325          
- 326          void timer0_lcd_change() interrupt 1
- 327          {
- 328   1          TH0 = 0xD8;
- 329   1          TL0 = 0xF0;
- 330   1          time_read();
- 331   1          lcd_time_write();
- 332   1      
- 333   1          { //超声波，闹钟
- 334   2              if (clk_on == 1)
- 335   2                  alarm();
- 336   2              whole_hour_tall_time(); //整点报时
- 337   2              CSB();
- 338   2          }
- 339   1      
- 340   1          { //按键监测
- 341   2              if (button1 == 0 || button2 == 0 || button3 == 0)
- 342   2              {
- 343   3                  _nop_();
- 344   3                  if (button1 == 0)
- 345   3                  {
- 346   4                      button_buzzer_on(2000);
- 347   4                  }
- 348   3                  else if (button2 == 0)
- 349   3                  {
- 350   4                      button_buzzer_on(2000);
- 351   4                  }
- 352   3                  else if (button3 == 0)
- 353   3                  {
- 354   4                      button_buzzer_on(2000);
- 355   4                  }
- 356   3              }
- 357   2          }
- 358   1      }
- 359          
- 360          void back_ground_delay() interrupt 5
- 361          {
-C51 COMPILER V9.60.0.0   MAIN                                                              09/25/2022 21:53:08 PAGE 7   
+ 317          
+ 318          void CSB(void)
+ 319          {
+ 320   1      
+ 321   1        startCSB();
+ 322   1        while (hcsr04_echo != 1)
+ 323   1          ; //发出超声波，开始计算时间
+ 324   1        startTime();
+ 325   1        while (hcsr04_echo != 0)
+ 326   1          ; //超声波回来，时间截止
+ 327   1        endTime();
+ 328   1        dis_pre = dis;
+ 329   1        dis = getDistance(); //获取距离
+ 330   1        dis_temp_pre = dis_temp;
+ 331   1        dis_temp = dis;
+ 332   1        if (dis_pre > dis)
+ 333   1        {
+ 334   2          if (dis_pre - dis > 70)
+ 335   2          {
+ 336   3            background_light = 0;
+ 337   3            TH0 = 0xff; // 65536-10000
+ 338   3            TL0 = 0xff; // 0xD8F0=65536-10000
+ 339   3            EA = 1;
+ 340   3            ET0 = 1;
+ 341   3            TR0 = 1;
+ 342   3          }
+ 343   2        }
+ 344   1        else
+ 345   1        {
+ 346   2          if (dis - dis_pre > 70)
+ 347   2          {
+ 348   3            background_light = 0;
+ 349   3            TH0 = 0xff; // 65536-10000
+ 350   3            TL0 = 0xff; // 0xD8F0=65536-10000
+ 351   3            EA = 1;
+ 352   3            ET0 = 1;
+ 353   3            TR0 = 1;
+ 354   3          }
+ 355   2        }
+ 356   1      }
+ 357          void startCSB(void) //启动超声波模块
+ 358          {
+ 359   1        hcsr04_trig = 0;
+ 360   1        hcsr04_trig = 1;
+ 361   1        delay10us();
+C51 COMPILER V9.60.0.0   MAIN                                                              09/26/2022 18:10:30 PAGE 7   
 
- 362   1          background_light = 0;
+ 362   1        hcsr04_trig = 0;
  363   1      }
+ 364          void startTime() //超声波发出时刻，启动记时
+ 365          {
+ 366   1        TH1 = 0;
+ 367   1        TL1 = 0;
+ 368   1        TR1 = 1;
+ 369   1      }
+ 370          void endTime() //超声波回来，停止记时
+ 371          {
+ 372   1        TR1 = 0;
+ 373   1      }
+ 374          uint getDistance() //获取距离的函数
+ 375          {
+ 376   1        uint distance;
+ 377   1        uint time;
+ 378   1        time = TH1 << 8 | TL1;
+ 379   1        distance = (time >> 6) % 100;
+ 380   1        return distance;
+ 381   1      }
+ 382          
+ 383          void timer0_lcd_change() interrupt 5
+ 384          {
+ 385   1        TH2 = 0xD8;
+ 386   1        TL2 = 0xF0;
+ 387   1        time_read();
+ 388   1        if (mod == 0) //模式一，显示时间
+ 389   1        {
+ 390   2          clock_bit_chose = 0;
+ 391   2          lcd_time_write();
+ 392   2        }
+ 393   1        else if (mod == 1) //模式二，显示闹钟时间
+ 394   1        {
+ 395   2      
+ 396   2          if (clock_bit_chose == 0) //正常模式
+ 397   2          {
+ 398   3            time_first_row_write(11, clk_hour);
+ 399   3            time_first_row_write(14, clk_min);
+ 400   3            lcd_sentence_write(2, 9, tab_void);
+ 401   3          }
+ 402   2          else //闹钟时间调整模式
+ 403   2          {
+ 404   3            if (clock_bit_chose == 1)
+ 405   3            {
+ 406   4              time_first_row_write(11, clk_hour);
+ 407   4              lcd_sentence_write(2, 9, tab_sign);
+ 408   4            }
+ 409   3            else if (clock_bit_chose == 2)
+ 410   3            {
+ 411   4              time_first_row_write(11, clk_hour);
+ 412   4              lcd_sentence_write(2, 10, tab_sign);
+ 413   4            }
+ 414   3            else if (clock_bit_chose == 3)
+ 415   3            {
+ 416   4              time_first_row_write(14, clk_min);
+ 417   4              lcd_sentence_write(2, 12, tab_sign);
+ 418   4            }
+ 419   3            else if (clock_bit_chose == 4)
+ 420   3            {
+ 421   4              time_first_row_write(14, clk_min);
+ 422   4              lcd_sentence_write(2, 13, tab_sign);
+ 423   4            }
+C51 COMPILER V9.60.0.0   MAIN                                                              09/26/2022 18:10:30 PAGE 8   
+
+ 424   3          }
+ 425   2        }
+ 426   1      
+ 427   1        else if (mod == 2) //模式三，秒表计时
+ 428   1        {
+ 429   2          clock_bit_chose = 0;
+ 430   2          time_second_row_write(3, sw_hour);
+ 431   2          time_second_row_write(6, sw_minute);
+ 432   2          time_second_row_write(9, sw_second);
+ 433   2          if (stop_watch == 1)
+ 434   2          { //背光常亮
+ 435   3            background_light = 0;
+ 436   3            TH0 = 0xff; // 65536-10000
+ 437   3            TL0 = 0xff; // 0xD8F0=65536-10000
+ 438   3          }
+ 439   2        }
+ 440   1      
+ 441   1        { //超声波，闹钟***********************************************************************************
+ 442   2          if (clk_on == 1)
+ 443   2            alarm();
+ 444   2          // whole_hour_tall_time(); //整点报时
+ 445   2          CSB();
+ 446   2          if (dis_temp < limit_distance && dis_temp_pre < limit_distance) //测距报警
+ 447   2            buzzer_on(10000);
+ 448   2          if (stop_watch == 1) //秒表时间刷新
+ 449   2          {
+ 450   3            sw_hour = hour - sw_hour_begin;
+ 451   3            sw_minute = minute - sw_minute_begin;
+ 452   3            sw_second = second - sw_second_begin;
+ 453   3          }
+ 454   2        } //***********************************************************************************************
+ 455   1      
+ 456   1        { //按键监测
+ 457   2          if (button1 == 0 || button2 == 0 || button3 == 0 || button4 == 0)
+ 458   2          {
+ 459   3            for (j = 30; j > 0; j--)
+ 460   3              delay10us();
+ 461   3            if (button1 == 0)
+ 462   3            {
+ 463   4              button_buzzer_on(2000);
+ 464   4              if (mod != 3)
+ 465   4                mod++;
+ 466   4              else
+ 467   4                mod = 0;
+ 468   4              if (mod == 0)
+ 469   4              {
+ 470   5                lcd_sentence_write(1, 0, tab1);
+ 471   5                lcd_sentence_write(2, 0, tab2);
+ 472   5              }
+ 473   4              else if (mod == 1)
+ 474   4              {
+ 475   5                lcd_sentence_write(1, 0, tab_clock);
+ 476   5                if (clk_on == 1)
+ 477   5                  lcd_sentence_write(2, 0, tab_on);
+ 478   5                else
+ 479   5                  lcd_sentence_write(2, 0, tab_off);
+ 480   5              }
+ 481   4              else if (mod == 2)
+ 482   4              {
+ 483   5                lcd_sentence_write(1, 0, tab_stop_clock);
+ 484   5                lcd_sentence_write(2, 0, tab2);
+ 485   5              }
+C51 COMPILER V9.60.0.0   MAIN                                                              09/26/2022 18:10:30 PAGE 9   
+
+ 486   4            }
+ 487   3            else if (button2 == 0)
+ 488   3            {
+ 489   4              button_buzzer_on(2000);
+ 490   4              if (mod == 1) //闹钟开启/关闭
+ 491   4              {
+ 492   5                clk_on = (clk_on == 0) ? 1 : 0;
+ 493   5              }
+ 494   4              if (clk_on == 1)
+ 495   4                lcd_sentence_write(2, 0, tab_on);
+ 496   4              else
+ 497   4                lcd_sentence_write(2, 0, tab_off);
+ 498   4      
+ 499   4              if (mod == 2) //秒表开始/暂停计时
+ 500   4              {
+ 501   5                stop_watch = (stop_watch == 1) ? 0 : 1;
+ 502   5                if (stop_watch == 1)
+ 503   5                {
+ 504   6                  sw_second_begin = second - sw_second,
+ 505   6                  sw_minute_begin = minute - sw_minute;
+ 506   6                  sw_hour_begin = hour - sw_hour;
+ 507   6                }
+ 508   5              }
+ 509   4            }
+ 510   3            else if (button3 == 0)
+ 511   3            {
+ 512   4              button_buzzer_on(2000);
+ 513   4              if (mod == 1) //闹钟时间更改位选择
+ 514   4              {
+ 515   5                clock_bit_chose = (clock_bit_chose == 4) ? 0 : ++clock_bit_chose;
+ 516   5              }
+ 517   4              else if (mod == 2) //秒表复位
+ 518   4              {
+ 519   5                sw_hour = 0;
+ 520   5                sw_minute = 0;
+ 521   5                sw_second = 0;
+ 522   5              }
+ 523   4            }
+ 524   3            else if (button4 == 0)
+ 525   3            {
+ 526   4              button_buzzer_on(2000);
+ 527   4              if (mod == 1) //闹钟时间调节
+ 528   4              {
+ 529   5                if (clock_bit_chose != 0)
+ 530   5                {
+ 531   6                  if (clock_bit_chose == 1)
+ 532   6                  {
+ 533   7                    clk_hour += 10;
+ 534   7                    if (clk_hour / 10 > 2)
+ 535   7                      clk_hour -= 30;
+ 536   7                  }
+ 537   6                  if (clock_bit_chose == 2)
+ 538   6                  {
+ 539   7                    clk_hour += 1;
+ 540   7                    if (clk_hour>23)
+ 541   7                      clk_hour=0;
+ 542   7                  }
+ 543   6                  if (clock_bit_chose == 3)
+ 544   6                  {
+ 545   7                    clk_min += 10;
+ 546   7                    if (clk_min / 10 > 5)
+ 547   7                      clk_min -= 60;
+C51 COMPILER V9.60.0.0   MAIN                                                              09/26/2022 18:10:30 PAGE 10  
+
+ 548   7                  }
+ 549   6                  if (clock_bit_chose == 4)
+ 550   6                  {
+ 551   7                    clk_min += 1;
+ 552   7                    if (clk_min % 10>23)
+ 553   7                      clk_min=0;
+ 554   7                  }
+ 555   6                }
+ 556   5              }
+ 557   4            }
+ 558   3          }
+ 559   2        }
+ 560   1      }
+ 561          
+ 562          void back_ground_delay() interrupt 1
+ 563          {
+ 564   1        if (tem++ > 150) //背光唤醒时间调整
+ 565   1        {
+ 566   2          background_light = 1;
+ 567   2          tem = 0;
+ 568   2          TR0 = 0;
+ 569   2        }
+ 570   1      }
 
 
 MODULE INFORMATION:   STATIC OVERLAYABLE
-   CODE SIZE        =   1091    ----
-   CONSTANT SIZE    =     41    ----
+   CODE SIZE        =   1794    ----
+   CONSTANT SIZE    =    157    ----
    XDATA SIZE       =   ----    ----
    PDATA SIZE       =   ----    ----
-   DATA SIZE        =     18       2
+   DATA SIZE        =     28       8
    IDATA SIZE       =   ----    ----
    BIT SIZE         =   ----    ----
 END OF MODULE INFORMATION.
