@@ -1,4 +1,4 @@
-C51 COMPILER V9.60.0.0   MAIN                                                              09/26/2022 18:10:30 PAGE 1   
+C51 COMPILER V9.60.0.0   MAIN                                                              09/27/2022 17:35:56 PAGE 1   
 
 
 C51 COMPILER V9.60.0.0, COMPILATION OF MODULE MAIN
@@ -62,7 +62,7 @@ line level    source
              -�
   51          uchar read_1302(uchar);      //从1302读数据函数，指定读取数据来源地址
   52          
-C51 COMPILER V9.60.0.0   MAIN                                                              09/26/2022 18:10:30 PAGE 2   
+C51 COMPILER V9.60.0.0   MAIN                                                              09/27/2022 17:35:56 PAGE 2   
 
   53          void lcd_init(void);     // lcd1602a
   54          void write_lcd_com(uchar); //***液晶写入命令函数
@@ -126,7 +126,7 @@ line level    source
  112   1      }
  113          void buzzer_on(uint ms)
  114          {
-C51 COMPILER V9.60.0.0   MAIN                                                              09/26/2022 18:10:30 PAGE 3   
+C51 COMPILER V9.60.0.0   MAIN                                                              09/27/2022 17:35:56 PAGE 3   
 
  115   1        buzzer = buzzer_open;
  116   1        delay10nus(ms);
@@ -190,7 +190,7 @@ line level    source
  174   1      }
  175          void write_lcd_dat(uchar dat) //***液晶写入数据函数****
  176          {
-C51 COMPILER V9.60.0.0   MAIN                                                              09/26/2022 18:10:30 PAGE 4   
+C51 COMPILER V9.60.0.0   MAIN                                                              09/27/2022 17:35:56 PAGE 4   
 
  177   1        uint i = 9;
  178   1        led_rs = 1; //数据/指令选择置为数据
@@ -254,7 +254,7 @@ line level    source
  236   1        {
  237   2          if (IO)
  238   2            DATA = DATA | (0x01 << i);
-C51 COMPILER V9.60.0.0   MAIN                                                              09/26/2022 18:10:30 PAGE 5   
+C51 COMPILER V9.60.0.0   MAIN                                                              09/27/2022 17:35:56 PAGE 5   
 
  239   2          SCLK = 1;
  240   2          SCLK = 0;
@@ -318,7 +318,7 @@ line level    source
  298   1        time_second_row_write(9, second);
  299   1        time_weekday_write(12, week);
  300   1      }
-C51 COMPILER V9.60.0.0   MAIN                                                              09/26/2022 18:10:30 PAGE 6   
+C51 COMPILER V9.60.0.0   MAIN                                                              09/27/2022 17:35:56 PAGE 6   
 
  301          void lcd_sentence_write(uint row, uchar add, uchar *sen)
  302          {
@@ -382,7 +382,7 @@ line level    source
  359   1        hcsr04_trig = 0;
  360   1        hcsr04_trig = 1;
  361   1        delay10us();
-C51 COMPILER V9.60.0.0   MAIN                                                              09/26/2022 18:10:30 PAGE 7   
+C51 COMPILER V9.60.0.0   MAIN                                                              09/27/2022 17:35:56 PAGE 7   
 
  362   1        hcsr04_trig = 0;
  363   1      }
@@ -446,7 +446,7 @@ line level    source
  421   4              time_first_row_write(14, clk_min);
  422   4              lcd_sentence_write(2, 13, tab_sign);
  423   4            }
-C51 COMPILER V9.60.0.0   MAIN                                                              09/26/2022 18:10:30 PAGE 8   
+C51 COMPILER V9.60.0.0   MAIN                                                              09/27/2022 17:35:56 PAGE 8   
 
  424   3          }
  425   2        }
@@ -510,7 +510,7 @@ line level    source
  483   5                lcd_sentence_write(1, 0, tab_stop_clock);
  484   5                lcd_sentence_write(2, 0, tab2);
  485   5              }
-C51 COMPILER V9.60.0.0   MAIN                                                              09/26/2022 18:10:30 PAGE 9   
+C51 COMPILER V9.60.0.0   MAIN                                                              09/27/2022 17:35:56 PAGE 9   
 
  486   4            }
  487   3            else if (button2 == 0)
@@ -574,7 +574,7 @@ line level    source
  545   7                    clk_min += 10;
  546   7                    if (clk_min / 10 > 5)
  547   7                      clk_min -= 60;
-C51 COMPILER V9.60.0.0   MAIN                                                              09/26/2022 18:10:30 PAGE 10  
+C51 COMPILER V9.60.0.0   MAIN                                                              09/27/2022 17:35:56 PAGE 10  
 
  548   7                  }
  549   6                  if (clock_bit_chose == 4)
