@@ -7,7 +7,7 @@
 #define uchar unsigned char
 #define buzzer_open 1
 #define buzzer_close 0
-#define limit_distance 15
+#define limit_distance 10
 
 sbit led_en = P2 ^ 7; // led使能
 sbit led_rw = P2 ^ 6; //读写
@@ -36,11 +36,12 @@ uchar code tab_void[] = {"                "};
 uchar code tab_on[] = {"      ON        "};
 uchar code tab_off[] = {"      OFF       "};
 uchar code tab_stop_clock[] = {"   Stop Clock   "};
-uchar code tab_sign[] = {"  ^             "};
+uchar code tab_sign[] = {"  ^    "};
 
 uchar code weekday[7][3] = {"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"};
-uchar second, minute, hour, day, week, month, year, dis_temp, dis_temp_pre, tem, clk_hour, clk_min, clk_on, mod, stop_watch, sw_second, sw_minute, sw_hour, sw_second_begin, sw_minute_begin, sw_hour_begin;
+uchar second, minute, hour, day, week, month, year, dis_temp, dis_temp_pre, tem, clk_hour, clk_min, clk_on, mod, stop_watch, sw_second, sw_minute, sw_hour, sw_second_pre;
 uchar clock_bit_chose;
+char sw_second_begin, sw_minute_begin, sw_hour_begin;
 uint dis, dis_pre, j;
 
 //*********************************************************************************
@@ -84,7 +85,6 @@ void main()
 		sw_hour = 0;
 		sw_minute = 0;
 		sw_second = 0;
-
 		clk_on = 0;
 	}
 	lcd_init();
@@ -106,8 +106,7 @@ void delay10us() //延时10us函数
 }
 void delay10nus(uint n)
 {
-	uint j;
-	for (j = n; j > 0; j--)
+	for (n; n > 0; n--)
 		delay10us();
 }
 void buzzer_on(uint ms)
@@ -119,14 +118,12 @@ void buzzer_on(uint ms)
 void button_buzzer_on(uint ms)
 {
 	button_buzzer = buzzer_open;
-
 	background_light = 0;
 	TH0 = 0xff; // 65536-10000
 	TL0 = 0xff; // 0xD8F0=65536-10000
 	EA = 1;
 	ET0 = 1;
 	TR0 = 1;
-
 	delay10nus(ms);
 	button_buzzer = buzzer_close;
 }
@@ -153,7 +150,6 @@ void alarm(void)
 
 void lcd_init(void)
 {
-
 	write_lcd_com(0x38); //设置液晶工作模式，意思：16*2行显示，5*7点阵，8位数据
 	write_lcd_com(0x0c); //开显示不显示光标
 	write_lcd_com(0x06); //整屏不移动，光标自动右移
@@ -174,13 +170,11 @@ void write_lcd_com(uchar com) //****液晶写入指令函数****
 }
 void write_lcd_dat(uchar dat) //***液晶写入数据函数****
 {
-	uint i = 9;
 	led_rs = 1; //数据/指令选择置为数据
 	led_rw = 0; //读写选择置为写
 	P0 = dat;	//送入数据
 	led_en = 1; // led_en置高电平，为制造下降沿做准备
-	for (i; i > 0; i--)
-		delay10us();
+	delay10nus(10);
 	led_en = 0; // led_en由高变低，产生下降沿，液晶执行命令
 }
 
@@ -198,7 +192,7 @@ void ds1302_init() // 1302芯片初始化子函数
 		write_1302(0x86, 0x25); //日
 		write_1302(0x88, 0x09); //月
 		write_1302(0x8c, 0x22); //年 */
-	write_1302(0x8e, 0x80);
+	write_1302(0x8e, 0x80);//禁止写
 }
 void write_1302(uchar add, uchar dat) //向1302芯片写函数，指定写入地址，数据
 {
@@ -423,10 +417,10 @@ void timer0_lcd_change() interrupt 5
 			}
 		}
 	}
-
 	else if (mod == 2) //模式三，秒表计时
 	{
 		clock_bit_chose = 0;
+		// lcd_sentence_write(2, 0, tab2);
 		time_second_row_write(3, sw_hour);
 		time_second_row_write(6, sw_minute);
 		time_second_row_write(9, sw_second);
@@ -447,9 +441,22 @@ void timer0_lcd_change() interrupt 5
 			buzzer_on(10000);
 		if (stop_watch == 1) //秒表时间刷新
 		{
-			sw_hour = hour - sw_hour_begin;
-			sw_minute = minute - sw_minute_begin;
-			sw_second = second - sw_second_begin;
+			sw_second_pre = sw_second;
+			if (second < sw_second_begin)
+			{
+				sw_second = second - sw_second_begin + 60;
+			}
+			else
+			{
+				sw_second = second - sw_second_begin;
+				if (sw_second == 0 && sw_second_pre != sw_second)
+					sw_minute++;
+			}
+			if (sw_minute == 60)
+			{
+				sw_minute = 0;
+				sw_hour++;
+			}
 		}
 	} //***********************************************************************************************
 
@@ -458,13 +465,10 @@ void timer0_lcd_change() interrupt 5
 		{
 			for (j = 30; j > 0; j--)
 				delay10us();
-			if (button1 == 0)
+			if (button1 == 0) //模式切换
 			{
 				button_buzzer_on(2000);
-				if (mod != 3)
-					mod++;
-				else
-					mod = 0;
+				mod = (mod == 2) ? 0 : ++mod;
 				if (mod == 0)
 				{
 					lcd_sentence_write(1, 0, tab1);
@@ -490,11 +494,11 @@ void timer0_lcd_change() interrupt 5
 				if (mod == 1) //闹钟开启/关闭
 				{
 					clk_on = (clk_on == 0) ? 1 : 0;
+					if (clk_on == 1)
+						lcd_sentence_write(2, 0, tab_on);
+					else
+						lcd_sentence_write(2, 0, tab_off);
 				}
-				if (clk_on == 1)
-					lcd_sentence_write(2, 0, tab_on);
-				else
-					lcd_sentence_write(2, 0, tab_off);
 
 				if (mod == 2) //秒表开始/暂停计时
 				{
@@ -537,8 +541,8 @@ void timer0_lcd_change() interrupt 5
 						if (clock_bit_chose == 2)
 						{
 							clk_hour += 1;
-							if (clk_hour>23)
-								clk_hour=0;
+							if (clk_hour > 23)
+								clk_hour = 0;
 						}
 						if (clock_bit_chose == 3)
 						{
@@ -549,8 +553,8 @@ void timer0_lcd_change() interrupt 5
 						if (clock_bit_chose == 4)
 						{
 							clk_min += 1;
-							if (clk_min % 10>23)
-								clk_min=0;
+							if (clk_min % 10 > 23)
+								clk_min = 0;
 						}
 					}
 				}
